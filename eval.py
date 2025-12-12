@@ -1,111 +1,95 @@
 import os
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from sklearn.metrics import confusion_matrix, roc_curve, auc, classification_report
-import matplotlib.pyplot as plt
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, roc_curve, auc, f1_score
+from torch.utils.data import DataLoader
 
-from img_recov1 import CelebADataset, get_model  # <-- adapt to your model file
+# Import your shared code from main.py
+from main import get_model, CelebADataset, df_test, images_folder
 
+# -----------------------------
+# 1) Device and output folder
+# -----------------------------
+device = "cuda" if torch.cuda.is_available() else "cpu"
+output_dir = "output"
+os.makedirs(output_dir, exist_ok=True)
 
-# -----------------------------------------------------------
-# SAVE PLOTS WITHOUT SHOWING THEM
-# -----------------------------------------------------------
-def save_confusion_matrix(y_true, y_pred, output_path):
-    cm = confusion_matrix(y_true, y_pred)
-    plt.figure(figsize=(6, 5))
-    plt.imshow(cm, interpolation="nearest")
-    plt.title("Confusion Matrix")
-    plt.colorbar()
-    plt.xlabel("Predicted")
-    plt.ylabel("True")
-    plt.savefig(output_path, bbox_inches="tight")
-    plt.close()
+# -----------------------------
+# 2) Prepare test DataLoader
+# -----------------------------
+# Use the dataset class defined in main.py
+test_dataset = CelebADataset(df_test, images_folder)
+test_loader = DataLoader(test_dataset, batch_size=16, shuffle=False)
 
+# -----------------------------
+# 3) Load InceptionV3 model offline
+# -----------------------------
+weights_path = "inception/inception_v3_weights.pth"
+model = get_model(weights_path=weights_path, device=device)
+model.eval()
 
-def save_roc_curve(y_true, y_score, output_path):
-    fpr, tpr, _ = roc_curve(y_true, y_score)
-    roc_auc = auc(fpr, tpr)
+# -----------------------------
+# 4) Run evaluation
+# -----------------------------
+all_labels = []
+all_preds = []
+all_probs = []
 
-    plt.figure(figsize=(6, 5))
-    plt.plot(fpr, tpr, linewidth=2)
-    plt.plot([0, 1], [0, 1], linestyle="--")
-    plt.title(f"ROC Curve (AUC = {roc_auc:.4f})")
-    plt.xlabel("False Positive Rate")
-    plt.ylabel("True Positive Rate")
-    plt.savefig(output_path, bbox_inches="tight")
-    plt.close()
+with torch.no_grad():
+    for images, labels in test_loader:
+        images = images.to(device)
+        labels = labels.to(device)
+        outputs = model(images)
+        probs = torch.softmax(outputs, dim=1)[:, 1]  # prob of Male=1
+        preds = torch.argmax(outputs, dim=1)
 
+        all_labels.extend(labels.cpu().numpy())
+        all_preds.extend(preds.cpu().numpy())
+        all_probs.extend(probs.cpu().numpy())
 
-# -----------------------------------------------------------
-# MAIN EVAL FUNCTION
-# -----------------------------------------------------------
-def evaluate(model_path, data_root, output_dir="output"):
-    os.makedirs(output_dir, exist_ok=True)
+all_labels = np.array(all_labels)
+all_preds = np.array(all_preds)
+all_probs = np.array(all_probs)
 
-    # -----------------------------
-    # Load Model
-    # -----------------------------
-    model = get_model(weights_path=model_path, device=device)  # your model class
-    model.load_state_dict(torch.load(model_path, map_location="cpu"))
-    model.eval()
+# -----------------------------
+# 5) Metrics
+# -----------------------------
+acc = 100 * np.mean(all_preds == all_labels)
+f1 = f1_score(all_labels, all_preds)
+print(f"Test Accuracy: {acc:.2f}% | F1-score: {f1:.4f}")
 
-    # -----------------------------
-    # Load Dataset
-    # -----------------------------
-    dataset = CelebADataset(data_root, split="test")
-    loader = DataLoader(dataset, batch_size=64, shuffle=False)
+# -----------------------------
+# 6) Confusion Matrix
+# -----------------------------
+cm = confusion_matrix(all_labels, all_preds)
+plt.figure(figsize=(6, 6))
+sns.heatmap(cm, annot=True, fmt="d", cmap="Blues")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.title("Confusion Matrix")
+plt.savefig(
+    os.path.join(output_dir, "confusion_matrix.png"), dpi=300, bbox_inches="tight"
+)
+plt.close()
 
-    y_true = []
-    y_pred = []
-    y_scores = []
+# -----------------------------
+# 7) ROC Curve
+# -----------------------------
+fpr, tpr, _ = roc_curve(all_labels, all_probs)
+roc_auc = auc(fpr, tpr)
 
-    # -----------------------------
-    # Evaluation Loop
-    # -----------------------------
-    with torch.no_grad():
-        for images, labels in loader:
-            outputs = model(images)
-            probs = torch.sigmoid(outputs).squeeze()
+plt.figure(figsize=(6, 6))
+plt.plot(fpr, tpr, color="darkorange", lw=2, label=f"ROC curve (AUC = {roc_auc:.4f})")
+plt.plot([0, 1], [0, 1], color="navy", lw=2, linestyle="--")
+plt.xlim([0.0, 1.0])
+plt.ylim([0.0, 1.05])
+plt.xlabel("False Positive Rate")
+plt.ylabel("True Positive Rate")
+plt.title("Receiver Operating Characteristic")
+plt.legend(loc="lower right")
+plt.savefig(os.path.join(output_dir, "roc_curve.png"), dpi=300, bbox_inches="tight")
+plt.close()
 
-            preds = (probs > 0.5).int()
-
-            y_true.extend(labels.cpu().numpy())
-            y_pred.extend(preds.cpu().numpy())
-            y_scores.extend(probs.cpu().numpy())
-
-    # Convert lists to arrays
-    y_true = np.array(y_true)
-    y_pred = np.array(y_pred)
-    y_scores = np.array(y_scores)
-
-    # -----------------------------
-    # Print Metrics to File
-    # -----------------------------
-    with open(os.path.join(output_dir, "classification_report.txt"), "w") as f:
-        f.write(classification_report(y_true, y_pred))
-
-    print("✔ classification_report.txt saved")
-
-    # -----------------------------
-    # Save Figures
-    # -----------------------------
-    save_confusion_matrix(
-        y_true, y_pred, os.path.join(output_dir, "confusion_matrix.png")
-    )
-
-    save_roc_curve(y_true, y_scores, os.path.join(output_dir, "roc_curve.png"))
-
-    print("✔ confusion_matrix.png saved")
-    print("✔ roc_curve.png saved")
-    print("Evaluation complete!")
-
-
-# -----------------------------------------------------------
-# Run eval.py directly
-# -----------------------------------------------------------
-if __name__ == "__main__":
-    evaluate(
-        model_path="model/best_model.pth", data_root="data/celeba", output_dir="output"
-    )
+print("✅ Evaluation complete. Plots saved to", output_dir)
