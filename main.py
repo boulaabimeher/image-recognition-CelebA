@@ -2,42 +2,48 @@ import os
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torchvision import models, transforms
 from torch.utils.data import Dataset, DataLoader
+from torchvision import models, transforms
 from PIL import Image
 import pandas as pd
 import numpy as np
 
 # -----------------------------
-# 1) Paths & Device
+# 1) Paths & Settings
 # -----------------------------
-main_folder = "data/celeba/"
+main_folder = "../data/celeba/"
 images_folder = os.path.join(main_folder, "img_align_celeba/img_align_celeba/")
-weights_path = "inception/inception_v3_weights.pth"  # offline weights
+weights_path = "inception/inception_v3_weights.pth"
+output_dir = "output"
+os.makedirs(output_dir, exist_ok=True)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-os.makedirs("checkpoints", exist_ok=True)
-os.makedirs("output", exist_ok=True)
+# Training parameters
+BATCH_SIZE = 16
+NUM_EPOCHS = 20
+LEARNING_RATE = 1e-4
+MOMENTUM = 0.9
+IMG_HEIGHT, IMG_WIDTH = 218, 178
+device = "cuda" if torch.cuda.is_available() else "cpu"
 
 # -----------------------------
-# 2) Load Attributes & Partitions
+# 2) Load CSVs
 # -----------------------------
+# Attributes
 df_attr = pd.read_csv(os.path.join(main_folder, "list_attr_celeba.csv"))
 df_attr.set_index("image_id", inplace=True)
 df_attr.replace(-1, 0, inplace=True)
 
+# Partitions
 df_partition = pd.read_csv(os.path.join(main_folder, "list_eval_partition.csv"))
 df_partition.set_index("image_id", inplace=True)
 
-# Merge Male attribute with partition
+# Merge for Male attribute
 df = df_partition.join(df_attr["Male"])
 df_train = df[df["partition"] == 0]
 df_val = df[df["partition"] == 1]
 df_test = df[df["partition"] == 2]
 
-print("Train:", len(df_train))
-print("Val:  ", len(df_val))
-print("Test: ", len(df_test))
+print("Train:", len(df_train), "Val:", len(df_val), "Test:", len(df_test))
 
 
 # -----------------------------
@@ -54,27 +60,27 @@ class CelebADataset(Dataset):
 
     def __getitem__(self, idx):
         img_name = self.df.index[idx]
-        label = int(self.df.iloc[idx, 0])  # Male: 0/1
+        label = int(self.df.iloc[idx]["Male"])
         img_path = os.path.join(self.images_folder, img_name)
         image = Image.open(img_path).convert("RGB")
+
         if self.transform:
             image = self.transform(image)
+
         return image, label
 
 
 # -----------------------------
-# 4) Data Augmentation
+# 4) Transforms / Augmentation
 # -----------------------------
-IMG_HEIGHT, IMG_WIDTH = 218, 178
-BATCH_SIZE = 16
-
 train_transform = transforms.Compose(
     [
         transforms.Resize((IMG_HEIGHT, IMG_WIDTH)),
         transforms.RandomHorizontalFlip(),
         transforms.RandomRotation(30),
-        transforms.ColorJitter(brightness=0.2, contrast=0.2),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 
@@ -82,33 +88,24 @@ val_transform = transforms.Compose(
     [
         transforms.Resize((IMG_HEIGHT, IMG_WIDTH)),
         transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
     ]
 )
 
+# -----------------------------
+# 5) DataLoaders
+# -----------------------------
 train_dataset = CelebADataset(df_train, images_folder, transform=train_transform)
 val_dataset = CelebADataset(df_val, images_folder, transform=val_transform)
-test_dataset = CelebADataset(df_test, images_folder, transform=val_transform)
 
-train_loader = DataLoader(
-    train_dataset, batch_size=BATCH_SIZE, shuffle=True, num_workers=4
-)
-val_loader = DataLoader(
-    val_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
-)
-test_loader = DataLoader(
-    test_dataset, batch_size=BATCH_SIZE, shuffle=False, num_workers=4
-)
+train_loader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(val_dataset, batch_size=BATCH_SIZE, shuffle=False)
 
 
 # -----------------------------
-# 5) Load InceptionV3 Offline
+# 6) Load InceptionV3 Offline
 # -----------------------------
 def get_model(weights_path=None, device="cpu"):
-    import torch
-    import torch.nn as nn
-    from torchvision import models
-    import os
-
     model = models.inception_v3(weights=None, aux_logits=False)
     model.fc = nn.Sequential(
         nn.Linear(model.fc.in_features, 1024),
@@ -121,7 +118,7 @@ def get_model(weights_path=None, device="cpu"):
 
     if weights_path is not None and os.path.exists(weights_path):
         state_dict = torch.load(weights_path, map_location=device)
-        # Remove aux logits keys
+        # Remove AuxLogits keys
         filtered_dict = {k: v for k, v in state_dict.items() if "AuxLogits" not in k}
         model.load_state_dict(filtered_dict, strict=False)
         print("✅ Loaded weights from", weights_path, "(AuxLogits ignored)")
@@ -130,27 +127,21 @@ def get_model(weights_path=None, device="cpu"):
     return model
 
 
-# Initialize the model with your local weights
-model = get_model(weights_path=weights_path, device=device)  # your local weights
-
+model = get_model(weights_path=weights_path, device=device)
 
 # -----------------------------
-# 6) Loss, Optimizer
+# 7) Loss & Optimizer
 # -----------------------------
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=1e-4, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=LEARNING_RATE, momentum=MOMENTUM)
 
 # -----------------------------
-# 7) Training Loop with Checkpoints
+# 8) Training Loop with Checkpoints
 # -----------------------------
-NUM_EPOCHS = 1
-best_val_loss = float("inf")
-
-train_losses, val_losses = [], []
-train_acc, val_acc = [], []
+best_val_acc = 0.0
 
 for epoch in range(NUM_EPOCHS):
-    # ----- Training -----
+    # ---- Training ----
     model.train()
     running_loss, correct, total = 0.0, 0, 0
     for images, labels in train_loader:
@@ -167,65 +158,34 @@ for epoch in range(NUM_EPOCHS):
         total += labels.size(0)
 
     train_loss = running_loss / total
-    train_accuracy = correct / total
-    train_losses.append(train_loss)
-    train_acc.append(train_accuracy)
+    train_acc = correct / total
 
-    # ----- Validation -----
+    # ---- Validation ----
     model.eval()
-    running_loss, correct, total = 0.0, 0, 0
+    val_running_loss, val_correct, val_total = 0.0, 0, 0
     with torch.no_grad():
         for images, labels in val_loader:
             images, labels = images.to(device), labels.to(device)
             outputs = model(images)
             loss = criterion(outputs, labels)
-
-            running_loss += loss.item() * images.size(0)
+            val_running_loss += loss.item() * images.size(0)
             _, preds = torch.max(outputs, 1)
-            correct += (preds == labels).sum().item()
-            total += labels.size(0)
+            val_correct += (preds == labels).sum().item()
+            val_total += labels.size(0)
 
-    val_loss = running_loss / total
-    val_accuracy = correct / total
-    val_losses.append(val_loss)
-    val_acc.append(val_accuracy)
+    val_loss = val_running_loss / val_total
+    val_acc = val_correct / val_total
 
     print(
         f"Epoch [{epoch + 1}/{NUM_EPOCHS}] "
-        f"Train Loss: {train_loss:.4f} Acc: {train_accuracy:.4f} "
-        f"Val Loss: {val_loss:.4f} Acc: {val_accuracy:.4f}"
+        f"Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} "
+        f"Val Loss: {val_loss:.4f} Acc: {val_acc:.4f}"
     )
 
-    # ----- Checkpoint -----
-    if val_loss < best_val_loss:
-        best_val_loss = val_loss
-        torch.save(
-            {
-                "epoch": epoch + 1,
-                "model_state_dict": model.state_dict(),
-                "optimizer_state_dict": optimizer.state_dict(),
-                "val_loss": val_loss,
-            },
-            "checkpoints/best_model.pth",
-        )
-        print(f"✅ Saved checkpoint at epoch {epoch + 1}")
+    # ---- Save best model ----
+    if val_acc > best_val_acc:
+        best_val_acc = val_acc
+        torch.save(model.state_dict(), os.path.join(output_dir, "best_model.pth"))
+        print(f"✅ Saved best model at epoch {epoch + 1} | Val Acc: {val_acc:.4f}")
 
-# -----------------------------
-# 8) Test Evaluation
-# -----------------------------
-model.eval()
-correct, total = 0, 0
-all_preds, all_labels = [], []
-
-with torch.no_grad():
-    for images, labels in test_loader:
-        images, labels = images.to(device), labels.to(device)
-        outputs = model(images)
-        _, preds = torch.max(outputs, 1)
-        correct += (preds == labels).sum().item()
-        total += labels.size(0)
-        all_preds.extend(preds.cpu().numpy())
-        all_labels.extend(labels.cpu().numpy())
-
-test_acc = correct / total
-print(f"✅ Test Accuracy: {test_acc * 100:.2f}%")
+print("✅ Training complete. Best validation accuracy:", best_val_acc)
