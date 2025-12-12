@@ -7,6 +7,8 @@ from torchvision import models, transforms
 from PIL import Image
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
+
 
 # -----------------------------
 # 1) Paths & Settings
@@ -144,7 +146,10 @@ for epoch in range(NUM_EPOCHS):
     # ---- Training ----
     model.train()
     running_loss, correct, total = 0.0, 0, 0
-    for batch_idx, (images, labels) in enumerate(train_loader, 1):
+
+    # tqdm for batches
+    train_iter = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{NUM_EPOCHS}", ncols=100)
+    for batch_idx, (images, labels) in enumerate(train_iter, 1):
         images, labels = images.to(device), labels.to(device)
         optimizer.zero_grad()
         outputs = model(images)
@@ -157,15 +162,10 @@ for epoch in range(NUM_EPOCHS):
         correct += (preds == labels).sum().item()
         total += labels.size(0)
 
-        # Print batch progress
-        if batch_idx % 100 == 0 or batch_idx == len(train_loader):
-            print(
-                f"Epoch [{epoch + 1}/{NUM_EPOCHS}] "
-                f"Batch [{batch_idx}/{len(train_loader)}] "
-                f"Train Loss: {running_loss / total:.4f} "
-                f"Train Acc: {correct / total:.4f}",
-                end="\r",
-            )
+        # Update tqdm postfix
+        train_iter.set_postfix(
+            loss=f"{running_loss / total:.4f}", acc=f"{correct / total:.4f}"
+        )
 
     train_loss = running_loss / total
     train_acc = correct / total
@@ -189,14 +189,18 @@ for epoch in range(NUM_EPOCHS):
     # Print epoch summary
     print(
         f"\nEpoch [{epoch + 1}/{NUM_EPOCHS}] "
-        f"Train Loss: {train_loss:.4f} Acc: {train_acc:.4f} "
-        f"| Val Loss: {val_loss:.4f} Acc: {val_acc:.4f}"
+        f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f} "
+        f"| Val Loss: {val_loss:.4f} | Val Acc: {val_acc:.4f}",
+        flush=True,
     )
 
     # ---- Save best model ----
     if val_acc > best_val_acc:
         best_val_acc = val_acc
         torch.save(model.state_dict(), os.path.join(output_dir, "best_model.pth"))
-        print(f"✅ Saved best model at epoch {epoch + 1} | Val Acc: {val_acc:.4f}")
+        print(
+            f"✅ Saved best model at epoch {epoch + 1} | Val Acc: {val_acc:.4f}",
+            flush=True,
+        )
 
 # end
