@@ -17,49 +17,20 @@ It is fully compatible with **offline environments** such as HPC clusters (no in
 
 ---
 
-## 📂 Project Structure
 
-pytorch_version/
-│── main.py # Training script
-│── eval.py # Evaluation script
-│── inception/ # Offline InceptionV3 weight file
-│── data/ # CelebA images + attributes
-│── outputs/ # Saved models and logs
-│── README.md
+## Run training:
 
+bash: 
 
-
----
-
-## 🏋️ Training
-
-Run training:
-
-```bash
 python main.py \
   --data_dir /path/to/celeba \
   --weights inception/inception_v3_weights.pth \
   --epochs 10 \
   --batch_size 64
 
-
-
 ---
 
-## 🏋️ Training
-
-Run training:
-
-```bash
-python main.py \
-  --data_dir /path/to/celeba \
-  --weights inception/inception_v3_weights.pth \
-  --epochs 10 \
-  --batch_size 64
-
-
-
-🧪 Evaluation
+## 🧪 Evaluation
 
 Run evaluation:
 
@@ -68,7 +39,7 @@ python eval.py \
   --weights outputs/best_model.pth
 
 
-Outputs include:
+## Outputs include:
 
 Accuracy
 
@@ -85,11 +56,9 @@ The evaluation script will display a confusion matrix similar to:
 [[ TN  FP ]
  [ FN  TP ]]
 
-🔧 Model Architecture (Modified InceptionV3)
+## 🔧 Model Architecture (Modified InceptionV3)
 InceptionV3 (weights=None)
  └── FC Layer: 2048 → 1024 → 512 → 2 (Male/Female)
 
 
 AuxLogits are ignored to stay compatible with offline weight files.
-
-
