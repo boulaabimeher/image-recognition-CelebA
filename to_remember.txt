@@ -1,0 +1,20 @@
+Activate first the env : conda activate img-reco
+pip install req 
+
+python main.py 
+main.eval
+
+fix your slurm  and choose you r GPU/CPU: 
+
+train the model with all image CelebA
+
+then let's check the results >> output
+
+this work is about lerning something new >> train CNN model + test cluster crill 
+
+here is a a pytorch_version
+evreything is locally (no internet )
+
+
+peace, 
+Meher
