@@ -198,3 +198,5 @@ wheelhouse/
 *.code-workspace
 slurm.sh
 best_model.keras
+eval_slurm.sh
+me.ipynb
