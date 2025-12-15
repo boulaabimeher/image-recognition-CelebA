@@ -1,0 +1,49 @@
+Epoch [1/20] Train Loss: 0.2661 | Train Acc: 0.8766 | Val Loss: 0.0902 | Val Acc: 0.9664
+✅ Saved best model at epoch 1 | Val Acc: 0.9664
+
+Epoch [2/20] Train Loss: 0.0932 | Train Acc: 0.9659 | Val Loss: 0.0602 | Val Acc: 0.9793
+✅ Saved best model at epoch 2 | Val Acc: 0.9793
+
+Epoch [3/20] Train Loss: 0.0689 | Train Acc: 0.9756 | Val Loss: 0.0487 | Val Acc: 0.9830
+✅ Saved best model at epoch 3 | Val Acc: 0.9830
+
+Epoch [4/20] Train Loss: 0.0593 | Train Acc: 0.9793 | Val Loss: 0.0486 | Val Acc: 0.9837
+✅ Saved best model at epoch 4 | Val Acc: 0.9837
+
+Epoch [5/20] Train Loss: 0.0525 | Train Acc: 0.9817 | Val Loss: 0.0602 | Val Acc: 0.9791
+
+Epoch [6/20] Train Loss: 0.0486 | Train Acc: 0.9829 | Val Loss: 0.0425 | Val Acc: 0.9849
+✅ Saved best model at epoch 6 | Val Acc: 0.9849
+
+Epoch [7/20] Train Loss: 0.0445 | Train Acc: 0.9845 | Val Loss: 0.0494 | Val Acc: 0.9843
+
+Epoch [8/20] Train Loss: 0.0415 | Train Acc: 0.9860 | Val Loss: 0.0378 | Val Acc: 0.9875
+✅ Saved best model at epoch 8 | Val Acc: 0.9875
+
+Epoch [9/20] Train Loss: 0.0402 | Train Acc: 0.9865 | Val Loss: 0.0373 | Val Acc: 0.9877
+✅ Saved best model at epoch 9 | Val Acc: 0.9877
+
+Epoch [10/20] Train Loss: 0.0373 | Train Acc: 0.9875 | Val Loss: 0.0444 | Val Acc: 0.9858
+
+Epoch [11/20] Train Loss: 0.0357 | Train Acc: 0.9879 | Val Loss: 0.0398 | Val Acc: 0.9867
+
+Epoch [12/20] Train Loss: 0.0336 | Train Acc: 0.9885 | Val Loss: 0.0376 | Val Acc: 0.9871
+
+Epoch [13/20] Train Loss: 0.0325 | Train Acc: 0.9890 | Val Loss: 0.0385 | Val Acc: 0.9872
+
+Epoch [14/20] Train Loss: 0.0306 | Train Acc: 0.9896 | Val Loss: 0.0393 | Val Acc: 0.9875
+
+Epoch [15/20] Train Loss: 0.0300 | Train Acc: 0.9899 | Val Loss: 0.0394 | Val Acc: 0.9875
+
+Epoch [16/20] Train Loss: 0.0282 | Train Acc: 0.9904 | Val Loss: 0.0401 | Val Acc: 0.9878
+✅ Saved best model at epoch 16 | Val Acc: 0.9878
+
+Epoch [17/20] Train Loss: 0.0275 | Train Acc: 0.9908 | Val Loss: 0.0390 | Val Acc: 0.9874
+
+Epoch [18/20] Train Loss: 0.0260 | Train Acc: 0.9911 | Val Loss: 0.0493 | Val Acc: 0.9860
+
+Epoch [19/20] Train Loss: 0.0251 | Train Acc: 0.9914 | Val Loss: 0.0423 | Val Acc: 0.9865
+
+Epoch [20/20] Train Loss: 0.0235 | Train Acc: 0.9921 | Val Loss: 0.0418 | Val Acc: 0.9869
+✅ Loaded weights from inception/inception_v3_weights.pth (AuxLogits ignored)
+job end: sam. 13 déc. 2025 01:08:29 CET
