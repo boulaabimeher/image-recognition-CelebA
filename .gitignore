@@ -197,5 +197,8 @@ notebook/
 wheelhouse/
 *.code-workspace
 slurm.sh
+eval_slurm.sh
 best_model.keras
+output/best_model.pth
 
+me.ipynb
