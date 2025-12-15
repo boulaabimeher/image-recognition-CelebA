@@ -178,19 +178,3 @@ Medical Image Analysis & Deep Learning
 ⭐ Acknowledgements
 CelebA Dataset
 
-PyTorch
-
-CRIL HPC infrastructure
-
-yaml
-Copy code
-
----
-
-If you want, next we can:
-- Add **badges** (PyTorch, Python, HPC)
-- Create a **`train.slurm` template**
-- Split code into `data.py / model.py / train.py / eval.py`
-- Make it **publication-ready**
-
-Just say the word 🚀
