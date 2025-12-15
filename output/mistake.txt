@@ -1,0 +1,89 @@
+🧠 The core mistake (one sentence)
+
+You mixed “definitions” and “execution” in main.py, then imported it in eval.py.
+Python executed the training code automatically.
+
+That’s it. Everything else is a consequence.
+
+🧩 Step-by-step: what went wrong from the beginning
+1️⃣ You wrote a correct training script (main.py)
+
+At first, this was totally fine:
+
+python main.py
+
+
+Dataset
+
+Model
+
+Training loop
+
+Saving best_model.pth
+
+✅ No problem as long as main.py is run directly
+
+2️⃣ Then you wanted to reuse code in eval.py
+
+Very reasonable idea 👍
+
+So you wrote:
+
+from main import get_model, CelebADataset, df_test
+
+
+Here is the critical Python rule that caused everything:
+
+⚠️ When you import a file, Python executes it line by line.
+
+Not just functions.
+Everything.
+
+3️⃣ Your training loop was at top-level
+
+Your main.py originally had:
+
+for epoch in range(NUM_EPOCHS):
+    ...
+
+
+❌ This is top-level code
+
+So when eval.py did:
+
+import main
+
+
+Python did this internally:
+
+→ open main.py
+→ execute line 1
+→ execute line 2
+→ ...
+→ start training 😱
+
+
+That’s why you saw:
+
+Epoch 1/20 ...
+
+
+even though you never launched training
+
+4️⃣ Why the error appeared only during evaluation
+
+After training finished (or partially ran), eval.py continued and crashed with:
+
+TypeError: default_collate: found PIL.Image.Image
+
+
+This happened because:
+
+eval.py used CelebADataset
+
+but without transforms
+
+so the DataLoader received PIL images instead of tensors
+
+This error masked the real root cause, which was training being triggered silently.
+
