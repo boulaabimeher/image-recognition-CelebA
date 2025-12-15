@@ -1,64 +1,196 @@
-# 🧠 Image Recognition on CelebA with PyTorch  
-## 🔍 Gender Classification Using InceptionV3 (Offline Weights)
+# Image Recognition on CelebA (Gender Classification)
 
-This project implements a complete **PyTorch image recognition pipeline** using the **CelebA** dataset to classify **gender (Male/Female)**.  
-It is fully compatible with **offline environments** such as HPC clusters (no internet), thanks to local `.pth` weight loading.
-
----
-
-## 🚀 Features
-
-- **Offline Deep Learning** (no pretrained download required)
-- **Custom InceptionV3 architecture**
-- **Full training loop with tqdm progress bars**
-- **Automatic best-model checkpointing**
-- **Evaluation script with accuracy, F1-score, and confusion matrix**
-- **Clean modular structure identical for train/eval**
+This repository implements **gender classification (Male / Female)** on the **CelebA dataset** using deep learning.
+The project is designed to **run fully offline on HPC clusters** (e.g. CRIL), with no internet access during training or evaluation.
 
 ---
 
+## 📂 Repository Structure
 
-## Run training:
+This repository contains **three branches**, each corresponding to a different framework or implementation:
 
-bash: 
+| Branch | Description |
+|------|------------|
+| `main` | Project overview and documentation |
+| `pytorch_version` | **PyTorch implementation (offline training on CRIL cluster)** |
+| `tensorflow_version` | TensorFlow / Keras implementation |
 
-python main.py \
-  --data_dir /path/to/celeba \
-  --weights inception/inception_v3_weights.pth \
-  --epochs 10 \
-  --batch_size 64
+> ⚠️ **All training on the CRIL cluster is done using the `pytorch_version` branch**
 
 ---
 
-## 🧪 Evaluation
+## 🧠 Task Description
 
-Run evaluation:
+- **Dataset**: CelebA
+- **Task**: Binary classification — `Male` vs `Female`
+- **Model**: InceptionV3 (trained offline)
+- **Loss**: CrossEntropyLoss
+- **Optimizer**: SGD
+- **Metrics**:
+  - Accuracy
+  - F1-score
+  - Confusion Matrix
+  - ROC Curve (AUC)
 
-python eval.py \
-  --data_dir /path/to/celeba \
-  --weights outputs/best_model.pth
+---
 
+## 🚀 Offline Training on CRIL Cluster (PyTorch)
 
-## Outputs include:
+### 1️⃣ Clone the repository (login node)
 
-Accuracy
+```bash
+git clone <your-repo-url>
+cd image-recognition-CelebA
+git checkout pytorch_version
+2️⃣ Dataset Preparation
+Download CelebA once on a machine with internet access, then copy it to the cluster.
 
-F1-score
+Expected structure:
 
-Classification report
+text
+Copy code
+data/celeba/
+├── img_align_celeba/
+│   └── img_align_celeba/
+│       ├── 000001.jpg
+│       ├── 000002.jpg
+│       └── ...
+├── list_attr_celeba.csv
+└── list_eval_partition.csv
+Update paths in main.py if needed:
 
-Confusion matrix plot
+python
+Copy code
+main_folder = "../data/celeba/"
+3️⃣ Python Environment (Offline)
+Create a virtual environment and install packages offline (wheelhouse method):
 
-📊 Confusion Matrix Example
+bash
+Copy code
+python -m venv img-reco
+source img-reco/bin/activate
+pip install --no-index --find-links=wheelhouse -r requirements.txt
+4️⃣ Offline Weights (InceptionV3)
+Pretrained weights must be downloaded before running on the cluster:
 
-The evaluation script will display a confusion matrix similar to:
+text
+Copy code
+pytorch_version/
+└── inception/
+    └── inception_v3_weights.pth
+The model is loaded without internet access:
 
-[[ TN  FP ]
- [ FN  TP ]]
+python
+Copy code
+models.inception_v3(weights=None, aux_logits=False)
+5️⃣ Training the Model
+Submit the job using SLURM:
 
-## 🔧 Model Architecture (Modified InceptionV3)
-InceptionV3 (weights=None)
- └── FC Layer: 2048 → 1024 → 512 → 2 (Male/Female)
+bash
+Copy code
+sbatch train.slurm
+Or run interactively (if allowed):
 
+bash
+Copy code
+python main.py
+During training:
 
-AuxLogits are ignored to stay compatible with offline weight files.
+Progress is displayed with tqdm
+
+Best model is saved automatically
+
+text
+Copy code
+output/
+└── best_model.pth
+📊 Evaluation (No Retraining)
+Evaluation does NOT retrain the model.
+
+Run:
+
+bash
+Copy code
+python eval.py
+This will:
+
+Load best_model.pth
+
+Evaluate on the test split
+
+Generate plots
+
+Outputs:
+
+text
+Copy code
+output/
+├── confusion_matrix.png
+├── roc_curve.png
+└── best_model.pth
+🛑 Important Design Choice
+To avoid accidental retraining:
+
+python
+Copy code
+if __name__ == "__main__":
+    # training code
+This ensures:
+
+main.py trains only when executed directly
+
+eval.py can safely import shared code
+
+📈 Results
+Typical performance after training:
+
+Accuracy: ~99%
+
+F1-score: ~0.99
+
+Strong ROC-AUC
+
+(Exact results may vary depending on training duration and hardware.)
+
+🧪 Reproducibility
+Fixed dataset splits using CelebA official partitions
+
+Offline execution
+
+Deterministic evaluation pipeline
+
+🔬 Future Work
+Multi-attribute classification
+
+Bias and fairness analysis
+
+Concept Bottleneck Models (CBMs)
+
+Distributed training
+
+Explainability (Grad-CAM, CAM)
+
+👤 Author
+Meher Boulaabi
+Artificial Intelligence Scientist
+Medical Image Analysis & Deep Learning
+
+⭐ Acknowledgements
+CelebA Dataset
+
+PyTorch
+
+CRIL HPC infrastructure
+
+yaml
+Copy code
+
+---
+
+If you want, next we can:
+- Add **badges** (PyTorch, Python, HPC)
+- Create a **`train.slurm` template**
+- Split code into `data.py / model.py / train.py / eval.py`
+- Make it **publication-ready**
+
+Just say the word 🚀
